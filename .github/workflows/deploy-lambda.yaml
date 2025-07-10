@@ -5,6 +5,9 @@ on:
     branches:
       - dev
       - github_ci-cd
+    paths:
+      - 'src/lambda/**'
+      - '.github/workflows/deploy-lambda.yml'
 
 jobs:
   deploy:
