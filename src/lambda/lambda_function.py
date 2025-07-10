@@ -67,6 +67,8 @@ def lambda_handler(event, context):
                         ":fare": to_decimal(trip_data.get("estimated_fare_amount")),
                     }
                 )
+                logger.info(f"Successfully updated Trip Start data for trip_id: {trip_id}")
+
 
             elif trip_data.get("dropoff_datetime"):
                 table.update_item(
@@ -83,14 +85,15 @@ def lambda_handler(event, context):
                     """,
                     ExpressionAttributeValues={
                         ":dropoff_dt": parse_datetime(trip_data.get("dropoff_datetime")),
-                        ":rate_code": trip_data.get("rate_code"),
+                        ":rate_code": to_decimal(trip_data.get("rate_code")),
                         ":trip_dist": to_decimal(trip_data.get("trip_distance")),
                         ":fare_amt": to_decimal(trip_data.get("fare_amount")),
                         ":tip_amt": to_decimal(trip_data.get("tip_amount")),
-                        ":payment_type": trip_data.get("payment_type"),
-                        ":trip_type": trip_data.get("trip_type"),
+                        ":payment_type": to_decimal(trip_data.get("payment_type")),
+                        ":trip_type": to_decimal(trip_data.get("trip_type")),
                     }
                 )
+                logger.info(f"Successfully updated Trip End data for trip_id: {trip_id}")
             else:
                 logger.warning(f"Trip record missing pickup/dropoff datetimes: {trip_data}")
 
