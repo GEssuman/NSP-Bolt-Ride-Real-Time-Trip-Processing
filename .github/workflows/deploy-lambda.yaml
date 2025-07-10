@@ -1,0 +1,57 @@
+name: Deploy Lambda with Kinesis Trigger
+
+on:
+  push:
+    branches:
+      - dev
+      - github_ci-cd
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python (if using Python Lambda)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Package Lambda Function
+        run: |
+          mkdir -p package
+          cp src/lambda/lambda_function.py package/
+          cd package
+          zip -r ../lambda.zip .
+
+      - name: Deploy Lambda Function
+        run: |
+          aws lambda create-function \
+            --function-name bolt_trip_stream_processing \
+            --runtime python3.12 \
+            --role arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/service-role/bolt_trip_stream_processing-role-3fm6h19x \
+            --handler lambda_function.lambda_handler \
+            --zip-file fileb://lambda.zip \
+            --timeout 30 \
+            --memory-size 128 || \
+          aws lambda update-function-code \
+            --function-name bolt_trip_stream_processing \
+            --zip-file fileb://lambda.zip
+
+      - name: Add Kinesis Trigger to Lambda
+        run: |
+          aws lambda create-event-source-mapping \
+            --function-name bolt_trip_stream_processing  \
+            --event-source-arn arn:aws:kinesis:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:stream/bolt_ride_time \
+            --starting-position LATEST \
+            --batch-size 100 \
+            --enabled || echo "Mapping might already exist"
