@@ -1,0 +1,18 @@
+services:
+
+  glue:
+      image: public.ecr.aws/glue/aws-glue-libs:5
+      container_name: glue_aggregation_job
+      volumes:
+        - ./src/glue_job/glue_script:/home/glue/scripts
+        # - ./glue-libs:/opt/glue/libs
+      env_file:
+        - ./.env
+      working_dir: /home/glue/scripts
+      stdin_open: true
+
+  lambda:
+    image: python:3.11-slim
+    volumes:
+        - ./src/lambda:/home/app/
+    command: python /home/app/lambda_function.py
