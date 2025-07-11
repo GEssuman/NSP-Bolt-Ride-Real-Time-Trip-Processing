@@ -1,0 +1,86 @@
+name: Create or Update AWS Glue Job
+
+on:
+  push:
+    branches:
+      - dev
+      - github_ci-cd
+    paths:
+      - 'src/glue_job/glue_script/**'
+      - '.github/workflows/deploy-glue.yaml'
+
+jobs:
+  create-or-update-glue-job:
+    runs-on: ubuntu-latest
+
+    env:
+      GLUE_JOB_NAME: nsp-bolt-trip-aggregation-job
+      SCRIPT_FILE_PATH: src/glue_job/glue_script/nsp-bolt-trip-aggregation-job.py
+      S3_SCRIPT_KEY: scripts/nsp-bolt-trip-aggregation-job.py
+      GLUE_ROLE_ARN: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/AWSGlueServiceRole-MusicETLJob
+      SCRIPT_LOCATION: s3://aws-glue-assets-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}/scripts/nsp-bolt-trip-aggregation-job.py
+      TEMP_DIR: s3://aws-glue-assets-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}/temporary/
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload Glue Script to S3
+        run: |
+          aws s3 cp "$SCRIPT_FILE_PATH" "s3://aws-glue-assets-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}/$S3_SCRIPT_KEY"
+
+      - name: Create or Update Glue Job
+        run: |
+          set -e
+
+          echo "Checking if Glue job exists..."
+          if aws glue get-job --job-name "$GLUE_JOB_NAME" >/dev/null 2>&1; then
+            echo "Glue job exists. Updating..."
+            aws glue update-job \
+              --job-name "$GLUE_JOB_NAME" \
+              --job-update "{
+                \"Role\": \"$GLUE_ROLE_ARN\",
+                \"Command\": {
+                  \"Name\": \"glueetl\",
+                  \"ScriptLocation\": \"$SCRIPT_LOCATION\",
+                  \"PythonVersion\": \"3\"
+                },
+                \"DefaultArguments\": {
+                  \"--job-language\": \"python\",
+                  \"--TempDir\": \"$TEMP_DIR\",
+                  \"--enable-continuous-cloudwatch-log\": \"true\",
+                  \"--enable-metrics\": \"true\",
+                  \"--datalake-formats\": \"delta\"
+                },
+                \"GlueVersion\": \"4.0\",
+                \"NumberOfWorkers\": 2,
+                \"WorkerType\": \"G.1X\"
+              }"
+          else
+            echo "Glue job does not exist. Creating..."
+            aws glue create-job \
+              --name "$GLUE_JOB_NAME" \
+              --role "$GLUE_ROLE_ARN" \
+              --command "{
+                \"Name\": \"glueetl\",
+                \"ScriptLocation\": \"$SCRIPT_LOCATION\",
+                \"PythonVersion\": \"3\"
+              }" \
+              --default-arguments "{
+                \"--job-language\": \"python\",
+                \"--TempDir\": \"$TEMP_DIR\",
+                \"--enable-continuous-cloudwatch-log\": \"true\",
+                \"--enable-metrics\": \"true\",
+                \"--datalake-formats\": \"delta\"
+              }" \
+              --glue-version "4.0" \
+              --number-of-workers 2 \
+              --worker-type "G.1X"
+          fi
