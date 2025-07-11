@@ -83,3 +83,4 @@ jobs:
               --glue-version "4.0" \
               --number-of-workers 2 \
               --worker-type "G.1X"
+          fi
