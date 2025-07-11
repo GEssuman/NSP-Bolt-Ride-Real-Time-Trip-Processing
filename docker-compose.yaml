@@ -1,7 +1,8 @@
 services:
 
   glue:
-      image: public.ecr.aws/glue/aws-glue-libs:5
+      build: 
+        context: .
       container_name: glue_aggregation_job
       volumes:
         - ./src/glue_job/glue_script:/home/glue/scripts
