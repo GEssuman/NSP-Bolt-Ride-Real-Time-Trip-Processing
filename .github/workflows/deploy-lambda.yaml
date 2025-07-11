@@ -89,9 +89,9 @@ jobs:
       - name: Package Lambda Function
         run: |
           mkdir -p package
-          cp src/lambda/DDBStreamEvent/lambda_function.py package/
+          cp src/lambda/DDBStreamEvent/lambda_function.py package/ 
           cd package
-          zip -r ../lambda.zip .
+          zip -r ../lambda_function.zip .
 
       - name: Create or update Lambda function
         run: |
