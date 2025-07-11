@@ -3,8 +3,8 @@ name: Create or Update AWS Glue Job
 on:
   push:
     branches:
-      - main
       - dev
+      - github_ci-cd
     paths:
       - 'src/glue_job/glue_script/**'
       - '.github/workflows/deploy-glue.yaml'
