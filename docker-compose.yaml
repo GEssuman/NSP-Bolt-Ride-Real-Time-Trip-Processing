@@ -6,7 +6,6 @@ services:
       container_name: glue_aggregation_job
       volumes:
         - ./src/glue_job/glue_script:/home/glue/scripts
-        # - ./glue-libs:/opt/glue/libs
       env_file:
         - ./.env
       working_dir: /home/glue/scripts
