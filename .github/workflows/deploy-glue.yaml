@@ -9,13 +9,14 @@ on:
       - 'src/glue_job/glue_script/**'
       - '.github/workflows/deploy-glue.yaml'
 
-
 jobs:
   create-or-update-glue-job:
     runs-on: ubuntu-latest
 
     env:
       GLUE_JOB_NAME: nsp-bolt-trip-aggregation-job
+      SCRIPT_FILE_PATH: src/glue_job/glue_script/nsp-bolt-trip-aggregation-job.py
+      S3_SCRIPT_KEY: scripts/nsp-bolt-trip-aggregation-job.py
       GLUE_ROLE_ARN: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/AWSGlueServiceRole-MusicETLJob
       SCRIPT_LOCATION: s3://aws-glue-assets-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}/scripts/nsp-bolt-trip-aggregation-job.py
       TEMP_DIR: s3://aws-glue-assets-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}/temporary/
@@ -30,6 +31,10 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload Glue Script to S3
+        run: |
+          aws s3 cp "$SCRIPT_FILE_PATH" "s3://aws-glue-assets-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}/$S3_SCRIPT_KEY"
 
       - name: Create or Update Glue Job
         run: |
@@ -78,4 +83,3 @@ jobs:
               --glue-version "4.0" \
               --number-of-workers 2 \
               --worker-type "G.1X"
-          fi

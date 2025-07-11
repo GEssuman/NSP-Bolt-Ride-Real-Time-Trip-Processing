@@ -32,7 +32,7 @@ schema = StructType([
 data = [
     (1, "Alice", 25, "alice@example.com"),
     (2, "Bob", 31, "bob_updated@example.com"),     # updated record
-    (4, "Diana", 28, "diana@example.com")          # new record
+    (4, "Diana", 40, "diana@example.com")          # new record
 ]
 
 df = spark.createDataFrame(data, schema=schema)
