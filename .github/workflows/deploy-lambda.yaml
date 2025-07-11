@@ -6,11 +6,12 @@ on:
       - dev
       - github_ci-cd
     paths:
-      - 'src/lambda/**'
+      - 'src/lambda/bolt_trip_stream_processing/**'
+      - 'src/lambda/DDBStreamEvent/**'
       - '.github/workflows/deploy-lambda.yaml'
 
 jobs:
-  deploy:
+  deploy-bolt_trip_stream_processing-lambda:
     runs-on: ubuntu-latest
 
     steps:
@@ -32,7 +33,7 @@ jobs:
       - name: Package Lambda Function
         run: |
           mkdir -p package
-          cp src/lambda/lambda_function.py package/
+          cp src/lambda/bolt_trip_stream_processing/lambda_function.py package/
           cd package
           zip -r ../lambda.zip .
 
@@ -54,6 +55,69 @@ jobs:
         run: |
           aws lambda create-event-source-mapping \
             --function-name bolt_trip_stream_processing  \
+            --event-source-arn arn:aws:kinesis:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:stream/bolt_ride_time \
+            --starting-position LATEST \
+            --batch-size 100 \
+            --enabled || echo "Mapping might already exist"
+
+  deploy-DDBStreamEvent-lambda:
+    runs-on: ubuntu-latest
+
+    env:
+      FUNCTION_NAME: DDBStreamEvent
+      RUNTIME: python3.12
+      ROLE_ARN: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/service-role/bolt_trip_stream_processing-role-3fm6h19x 
+      DYNAMODB_ARN: arn:aws:dynamodb:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:table/nsp_bolt_trip_db
+      QUEUE_URL: https://sqs.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.AWS_ACCOUNT_ID }}/nsp_complete_bolt_trip
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python (if using Python Lambda)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Package Lambda Function
+        run: |
+          mkdir -p package
+          cp src/lambda/DDBStreamEvent/lambda_function.py package/
+          cd package
+          zip -r ../lambda.zip .
+
+      - name: Create or update Lambda function
+        run: |
+          if aws lambda get-function --function-name $FUNCTION_NAME; then
+            echo "Updating Lambda function code..."
+            aws lambda update-function-code \
+              --function-name $FUNCTION_NAME \
+              --zip-file fileb://lambda_function.zip
+
+            aws lambda update-function-configuration \
+              --function-name $FUNCTION_NAME \
+              --environment "Variables={QUEUE_URL=$QUEUE_URL}"
+          else
+            echo "Creating Lambda function..."
+            aws lambda create-function \
+              --function-name $FUNCTION_NAME \
+              --role $ROLE_ARN \
+              --handler $HANDLER \
+              --zip-file fileb://lambda_function.zip \
+              --environment "Variables={QUEUE_URL=$QUEUE_URL}"
+          fi
+
+      - name: Add Kinesis Trigger to Lambda
+        run: |
+          aws lambda create-event-source-mapping \
+            --function-name $FUNCTION_NAME  \
             --event-source-arn arn:aws:kinesis:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:stream/bolt_ride_time \
             --starting-position LATEST \
             --batch-size 100 \
