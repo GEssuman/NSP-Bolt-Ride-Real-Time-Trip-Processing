@@ -61,18 +61,17 @@ Data Info:
 - **Delta Lake** – Provides ACID-compliant, partitioned storage for daily KPI metrics
 
 ### Data Workflow
+
 **1. Event Ingestion:**
 Trip data (start and end) is published into Kinesis Data Streams by producers (simulated or mobile clients ).
 
-**2. Lambda Processing(Kinesis Consumer):**
+**2. Kinesis Processing (Lambda #1):**
 The stream triggers a Lambda function, which performs:
-
 - Initial validation
-- Basic processing
 - Storage of event records into DynamoDB
 
 
-**3. Conditional Triggering:**
+**3. DynamoDB Stream Filtering (Lambda #2):**
 Changes in the DynamoDB table are streamed via DynamoDB Streams. A Lambda function is triggered by these stream events.
 This Lambda function:
 - Checks if the event type is a MODIFY operation
@@ -81,16 +80,16 @@ This Lambda function:
 This design ensures that only completed trips are forwarded for aggregation, reducing downstream noise and improving processing efficiency in AWS Glue.
 
 
-**4. Data Aggregation:**
+**4. Aggregation with AWS Glue:**
 An AWS Glue job is scheduled to run every 10 minutes to process new trip data.
 During each run, the Glue job:
 - Polls messages from Amazon SQS (each message represents a completed trip)
 - Upserts the aggregated metrics into a Delta Lake table stored in Amazon S3, partitioned by pickup_date
 - Deletes processed messages from the SQS queue
 
-This allows the system to maintain an incrementally updated and queryable data store for operational analytics.
+### System Architecture
+![System Diagram](./docs/System_Architecture.drawio.png)
 
-![](./docs/System_Architecture.drawio.png)
 
 
 ## Project Structure
@@ -110,12 +109,18 @@ nsp-bolt-ride/
 │   │   └── glue_script/
 │   │       └── nsp-bolt-trip-aggregation-job.py   # Glue script for KPI aggregation
 │   │
-│   └── lambda/
-│       ├── bolt_trip_stream_processing/
-│       │   └── lambda_function.py  # Lambda to process trip events from Kinesis
-│       │
-│       └── DDBStreamEvent/
-│           └── lambda_function.py  # Lambda to filter complete trips from DynamoDB → SQS
+│   ├── lambda/
+│   │    ├── bolt_trip_stream_processing/
+│   │    │   └── lambda_function.py  # Lambda to process trip events from Kinesis
+│   │    │
+│   │    └── DDBStreamEvent/
+│   │        └── lambda_function.py  # Lambda to filter complete trips from DynamoDB → SQS
+│   │
+│   └──producer_simulation
+│      └── kinesis_producer_simulation.py # Python the simulate as a mobile app for the NSP Bolt Ride (Kineses Producer)
+│   
+│
+│
 │── docs/
 │
 │
@@ -124,17 +129,85 @@ nsp-bolt-ride/
     └── trip_start.csv
 ```
 
-
-### Deployment
-**Prerequisites**
-- AWS CLI & Docker installed
-- AWS IAM permission (ECS, Step functions, SNS, S3, lambda)
-- AWS Services set in GitHub 
-    - AWS_ACCESS_KEY_ID
-    - AWS_SECRET_ACCESS_KEY
-    - AWS_REGION
-    - AWS_ACCOUNT_ID
+### Additional Feature:
+There is a script that simulate as the mobile app client( that driver start and endind a tip) which produce the data event to the kineses  streams
 
 
- ## CI/CD Deployment with GitHub Actions
-This project uses GitHub Actions to automate the deployment of AWS Lambda functions and Glue ETL jobs on code changes to specified branches (dev).
+---
+
+## 🚀 Getting Started
+
+### 🔧 Prerequisites
+
+- Python 3.7+
+- AWS CLI installed and configured
+- Docker installed (for CI/CD)
+- AWS credentials with necessary IAM permissions
+- Git installed
+
+### 📥 Clone the Repository
+
+```bash
+git clone https://github.com/GEssuman/NSP-Bolt-Ride-Real-Time-Trip-Processing.git
+cd NSP-Bolt-Ride-Real-Time-Trip-Processing
+```
+
+
+## CI/CD Deployment with GitHub Actions
+This project uses GitHub Actions for automated deployment of:
+- AWS Lambda functions
+- AWS Glue ETL jobs
+
+
+**GitHub Secrets**
+Ensure the following secrets are configured:
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
+- AWS_REGION
+- AWS_ACCOUNT_ID
+
+
+## IAM Roles & Infrastructure Setup
+### Lambda Role Permissions
+- DynamoDB (Read/Write and Stream access)
+- Kinesis (Read)
+- SQS (SendMessage)
+- CloudWatch Logs
+
+### Glue Job Role Permissions
+- SQS (Receive/Delete)
+- S3 (Read/Write to Delta Lake)
+- CloudWatch Logs
+
+
+
+## Required AWS Resources
+- Kinesis Data Stream
+- DynamoDB Table (with streams enabled)
+- SQS Queue
+- IAM Roles for Lambda and Glue
+- S3 Bucket for Delta Lake output
+
+
+
+
+## Run the Simulation After Infrastructure Set Up
+Navigate to the producer script and simulate events:
+```
+cd src/producer_simulation
+python3 kinesis_producer_simulation.py
+
+```
+This script reads sample records from the CSV files and sends them to the Kinesis stream.
+
+
+## Output
+Aggregated KPIs are stored in a Delta Lake table on Amazon S3, partitioned by pickup_date. These metrics are suitable for:
+- Real-time dashboards
+- BI tools (Athena, QuickSight)
+- Alerts and operational insights
+
+
+
+
+
