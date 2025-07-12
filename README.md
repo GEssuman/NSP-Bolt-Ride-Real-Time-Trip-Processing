@@ -18,9 +18,9 @@ Data Info:
 | `pickup_location_id`       | string   | ID of the pickup location                                     |
 | `dropoff_location_id`      | string   | ID of the estimated dropoff location                          |
 | `vendor_id`                | string   | ID of the ride vendor (e.g., 1 = Bolt, 2 = Uber)              |
-| `pickup_datetime`          | string   | Timestamp when the trip starts (`YYYY-MM-DD HH:MM:SS`)        |
-| `estimated_dropoff_datetime` | string | Estimated end time of the trip (`YYYY-MM-DD HH:MM:SS`)        |
-| `estimated_fare_amount`    | string   | Estimated fare in local currency (e.g., `"12.50"`)            |
+| `pickup_datetime`          | Datetime   | Timestamp when the trip starts (`YYYY-MM-DD HH:MM:SS`)        |
+| `estimated_dropoff_datetime` | Datetime | Estimated end time of the trip (`YYYY-MM-DD HH:MM:SS`)        |
+| `estimated_fare_amount`    | Decimal   | Estimated fare in local currency (e.g., `"12.50"`)            |
          
 
 2. **Trip End Schema:**
@@ -28,14 +28,14 @@ Data Info:
 
 | Field Name         | Type     | Description                                                    |
 |--------------------|----------|----------------------------------------------------------------|
-| `dropoff_datetime` | string   | Actual time the trip ended (`YYYY-MM-DD HH:MM:SS`)             |
-| `rate_code`        | string   | Rate code used for the trip (e.g., standard, night rate, etc.) |
-| `passenger_count`  | string   | Number of passengers                                           |
-| `trip_distance`    | string   | Distance traveled in kilometers or miles                       |
-| `fare_amount`      | string   | Total fare amount for the trip                                 |
-| `tip_amount`       | string   | Amount tipped by the passenger                                 |
-| `payment_type`     | string   | Payment method used (e.g., 1 = Card, 2 = Cash)                 |
-| `trip_type`        | string   | Type of trip (e.g., 1 = Standard, 2 = Shared)                  |
+| `dropoff_datetime` | Datetime   | Actual time the trip ended (`YYYY-MM-DD HH:MM:SS`)             |
+| `rate_code`        | Decimal   | Rate code used for the trip (e.g., standard, night rate, etc.) |
+| `passenger_count`  | Int   | Number of passengers                                           |
+| `trip_distance`    | Decimal   | Distance traveled in kilometers or miles                       |
+| `fare_amount`      | Decimal   | Total fare amount for the trip                                 |
+| `tip_amount`       | Decimal   | Amount tipped by the passenger                                 |
+| `payment_type`     | Int   | Payment method used (e.g., 1 = Card, 2 = Cash)                 |
+| `trip_type`        | Int   | Type of trip (e.g., 1 = Standard, 2 = Shared)                  |
 | `trip_id`          | string   | Unique identifier for the trip                                 |
 
 ### Daily KPI Aggregation Schema
@@ -43,11 +43,11 @@ Data Info:
 | Field Name     | Type    | Description                                                                 |
 |----------------|---------|-----------------------------------------------------------------------------|
 | `pickup_date`  | date    | The day of trip pickup (`YYYY-MM-DD`), used as the partition key            |
-| `total_fare`   | double  | Sum of all fares collected from completed trips on that day                 |
-| `count_trips`  | bigint  | Total number of completed trips on that day                                 |
-| `average_fare` | double  | Weighted average fare: `(sum(fare) / count)`                                |
-| `max_fare`     | double  | Highest single fare recorded among completed trips                          |
-| `min_fare`     | double  | Lowest fare recorded among completed trips                                  |
+| `total_fare`   | Decimal  | Sum of all fares collected from completed trips on that day                 |
+| `count_trips`  | Int  | Total number of completed trips on that day                                 |
+| `average_fare` | Decimal  | Weighted average fare: `(sum(fare) / count)`                                |
+| `max_fare`     | Decimal  | Highest single fare recorded among completed trips                          |
+| `min_fare`     | Decimal  | Lowest fare recorded among completed trips                                  |
 
 
 ### AWS Servives Used:
@@ -89,6 +89,8 @@ During each run, the Glue job:
 - Deletes processed messages from the SQS queue
 
 This allows the system to maintain an incrementally updated and queryable data store for operational analytics.
+
+![](./docs/System_Architecture.drawio.png)
 
 
 ## Project Structure
